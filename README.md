@@ -8,4 +8,4 @@ Goal: To extract the color words from a product name.
 ## color_bert_train.py
 This file fine-tunes [the model](<https://huggingface.co/Babelscape/wikineural-multilingual-ner>) from HuggingFace.
 ## color_bert_test.py
-This file demonstrates how to use the tuned best model directly and the results.
+This file demonstrates how to use the tuned model directly and the results.
