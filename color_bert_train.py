@@ -30,9 +30,7 @@ datasets = DatasetDict({
     'validation': val_dataset
 })
 
-tokenizer = AutoTokenizer.from_pretrained("Babelscape/wikineural-multilingual-ner")
-
-def tokenize_and_align_labels(examples):
+def tokenize_and_align_labels(examples, tokenizer, label_all_tokens=True):
     tokenized_inputs = tokenizer(examples['text'], padding='max_length', truncation=True, max_length=128, is_split_into_words=False)
     
     labels = []
@@ -53,8 +51,8 @@ def tokenize_and_align_labels(examples):
     tokenized_inputs["labels"] = labels
     return tokenized_inputs
 
-label_all_tokens = False
-tokenized_datasets = datasets.map(tokenize_and_align_labels, batched=True)
+tokenizer = AutoTokenizer.from_pretrained("Babelscape/wikineural-multilingual-ner")
+tokenized_datasets = datasets.map(lambda examples: tokenize_and_align_labels(examples, tokenizer), batched=True)
 
 model = AutoModelForTokenClassification.from_pretrained(
     "Babelscape/wikineural-multilingual-ner",
@@ -121,13 +119,12 @@ logging.info("Finish training.")
 existing_model = AutoModelForTokenClassification.from_pretrained("./best_model")
 existing_tokenizer = AutoTokenizer.from_pretrained("./best_model")
 
-test_dataset = test_dataset.map(lambda examples: existing_tokenizer(examples['text'], padding='max_length', truncation=True, max_length=128, is_split_into_words=False), batched=True)
-test_dataset = test_dataset.map(tokenize_and_align_labels, batched=True)
+existing_tokenized_test_dataset = test_dataset.map(lambda examples: tokenize_and_align_labels(examples, existing_tokenizer), batched=True)
 
 trainer_existing = Trainer(
     model=existing_model,
     args=training_args,
-    eval_dataset=test_dataset,
+    eval_dataset=existing_tokenized_test_dataset,
     compute_metrics=compute_metrics
 )
 
@@ -135,16 +132,15 @@ logging.info("Evaluating existing best model on test dataset.")
 existing_results = trainer_existing.evaluate()
 
 # 測試新訓練的模型
-best_model = AutoModelForTokenClassification.from_pretrained("./temp_model")
-best_tokenizer = AutoTokenizer.from_pretrained("./temp_model")
+new_model = AutoModelForTokenClassification.from_pretrained("./temp_model")
+new_tokenizer = AutoTokenizer.from_pretrained("./temp_model")
 
-test_dataset = test_dataset.map(lambda examples: best_tokenizer(examples['text'], padding='max_length', truncation=True, max_length=128, is_split_into_words=False), batched=True)
-test_dataset = test_dataset.map(tokenize_and_align_labels, batched=True)
+new_tokenized_test_dataset = test_dataset.map(lambda examples: tokenize_and_align_labels(examples, new_tokenizer), batched=True)
 
 trainer_new = Trainer(
-    model=best_model,
+    model=new_model,
     args=training_args,
-    eval_dataset=test_dataset,
+    eval_dataset=new_tokenized_test_dataset,
     compute_metrics=compute_metrics
 )
 
